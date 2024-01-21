@@ -4,31 +4,29 @@ A resource quota, defined by a ResourceQuota object, provides constraints that l
 
 Resource quotas work like this:
 
-    1. Different teams work in different namespaces. This can be enforced with RBAC.
-
-    1. The administrator creates one ResourceQuota for each namespace.
-
-    1. Users create resources (pods, services, etc.) in the namespace, and the quota system tracks usage to ensure it does not exceed hard resource limits defined in a ResourceQuota.
-
-    1. If creating or updating a resource violates a quota constraint, the request will fail with HTTP status code 403 FORBIDDEN with a message explaining the constraint that would have been violated.
-
-    1. If quota is enabled in a namespace for compute resources like cpu and memory, users must specify requests or limits for those values; otherwise, the quota system may reject pod creation. Hint: Use the LimitRanger admission controller to force defaults for pods that make no compute resource requirements.
+1. Different teams work in different namespaces. This can be enforced with RBAC.
+1. The administrator creates one ResourceQuota for each namespace.
+1. Users create resources (pods, services, etc.) in the namespace, and the quota system tracks usage to ensure it does not exceed hard resource limits defined in a ResourceQuota.
+1. If creating or updating a resource violates a quota constraint, the request will fail with HTTP status code 403 FORBIDDEN with a message explaining the constraint that would have been violated.
+1. If quota is enabled in a namespace for compute resources like cpu and memory, users must specify requests or limits for those values; otherwise, the quota system may reject pod creation. Hint: Use the LimitRanger admission controller to force defaults for pods that make no compute resource requirements.
     
 
-## Create a namespace
+## Create a namespace quota-example.
 
 Create a namespace so that the resources you create in this exercise are isolated from the rest of your cluster.
 
     $ kubectl create namespace quota-example
 
-## Create a ResourceQuota
+## Create a ResourceQuota yaml.
 
 Here is a manifest for an example ResourceQuota:
      
+    user@vsphere:~$ cat quota-mem-cpu.yaml
     apiVersion: v1
     kind: ResourceQuota
     metadata:
-      name: mem-cpu-demo
+      name: mem-cpu-demo 
+      namespace: quota-example
     spec:
       hard:
         requests.cpu: "1"
@@ -36,9 +34,10 @@ Here is a manifest for an example ResourceQuota:
         limits.cpu: "2"
         limits.memory: 2Gi
 
+
 Create the ResourceQuota:
 
-    $ kubectl apply -f https://k8s.io/examples/admin/resource/quota-mem-cpu.yaml --namespace=quota-example
+    $ kubectl apply -f quota-mem-cpu.yaml --namespace=quota-example
 
 View detailed information about the ResourceQuota:
 
@@ -46,16 +45,17 @@ View detailed information about the ResourceQuota:
 
 The ResourceQuota places these requirements on the quota-mem-cpu-example namespace:
 
-    1. For every Pod in the namespace, each container must have a memory request, memory limit, cpu request, and cpu limit.
-    1. The memory request total for all Pods in that namespace must not exceed 1 GiB.
-    1. The memory limit total for all Pods in that namespace must not exceed 2 GiB.
-    1. The CPU request total for all Pods in that namespace must not exceed 1 cpu.
-    1. The CPU limit total for all Pods in that namespace must not exceed 2 cpu.
+1. For every Pod in the namespace, each container must have a memory request, memory limit, cpu request, and cpu limit.
+1. The memory request total for all Pods in that namespace must not exceed 1 GiB.
+1. The memory limit total for all Pods in that namespace must not exceed 2 GiB.
+1. The CPU request total for all Pods in that namespace must not exceed 1 cpu.
+1. The CPU limit total for all Pods in that namespace must not exceed 2 cpu.
 
 ## Create a Pod
 
 Here is a manifest for an example Pod:
 
+    user@vsphere:~$ vim pod-quota.yaml
     apiVersion: v1
     kind: Pod
     metadata:
@@ -74,7 +74,7 @@ Here is a manifest for an example Pod:
 
 Create the Pod:
 
-    $ kubectl apply -f quota-pod.yaml --namespace=quota-example
+    $ kubectl apply -f pod-quota.yaml --namespace=quota-example
 
 Verify that the Pod is running and that its (only) container is healthy:
 
@@ -129,7 +129,7 @@ Attempt to create the Pod:
 
 The second Pod does not get created. The output shows that creating the second Pod would cause the memory request total to exceed the memory request quota.
 
-Error from server (Forbidden): error when creating "examples/admin/resource/quota-mem-cpu-pod-2.yaml":
-pods "quota-mem-cpu-demo-2" is forbidden: exceeded quota: mem-cpu-demo,
-requested: requests.memory=700Mi,used: requests.memory=600Mi, limited: requests.memory=1Gi
+    Error from server (Forbidden): error when creating "examples/admin/resource/quota-mem-cpu-pod-2.yaml":
+    pods "quota-mem-cpu-demo-2" is forbidden: exceeded quota: mem-cpu-demo,
+    requested: requests.memory=700Mi,used: requests.memory=600Mi, limited: requests.memory=1Gi
 
