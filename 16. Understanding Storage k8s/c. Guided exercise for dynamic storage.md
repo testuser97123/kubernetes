@@ -61,6 +61,15 @@ step 1. Create rbac for nfs-client provisioner.
       name: leader-locking-nfs-client-provisioner
       apiGroup: rbac.authorization.k8s.io
 
+Apply rbac policy. 
+
+    user@vsphere:~/nfs$ kubectl apply -f 01-rbac.yaml 
+    serviceaccount/nfs-client-provisioner created
+    clusterrole.rbac.authorization.k8s.io/nfs-client-provisioner-runner created
+    clusterrolebinding.rbac.authorization.k8s.io/run-nfs-client-provisioner created
+    role.rbac.authorization.k8s.io/leader-locking-nfs-client-provisioner created
+    rolebinding.rbac.authorization.k8s.io/leader-locking-nfs-client-provisioner created
+
 step 2. Create storageClass. 
 
     user@vsphere:~$ vim 02-class.yaml 
@@ -71,6 +80,17 @@ step 2. Create storageClass.
     provisioner: external
     parameters:
       archiveOnDelete: "false"
+
+Apply storageClass. 
+
+    user@vsphere:~$ kubectl apply -f 02-class.yaml 
+    storageclass.storage.k8s.io/nfs created
+
+Getting status of storageClass. 
+
+    user@vsphere:~/nfs$ kubectl get sc 
+    NAME   PROVISIONER   RECLAIMPOLICY   VOLUMEBINDINGMODE   ALLOWVOLUMEEXPANSION   AGE
+    nfs    external      Delete          Immediate           false                  4s
 
 step 3. Create nfs-provisioner. 
 
@@ -111,6 +131,25 @@ step 3. Create nfs-provisioner.
                 server: 172.25.128.2
                 path: /nfsVsphereVMDK
 
+Apply deployment provisioner. 
+
+    user@vsphere:~/nfs$ kubectl apply -f 03-provisioner.yaml
+    deployment.apps/redhat-utility created
+
+Wait for pod become ready.
+
+    user@vsphere:~/nfs$ kubectl get pods
+    NAME                              READY   STATUS              RESTARTS   AGE
+    redhat-utility-84f54db69c-9fnxq   0/1     ContainerCreating   0          4s
+
+Wait for sometime until pod become running. 
+
+    user@vsphere:~/nfs$ kubectl get pods
+    NAME                              READY   STATUS    RESTARTS   AGE
+    redhat-utility-84f54db69c-9fnxq   1/1     Running   0          20s
+
+
+
 step 4. Create dynamic pvc. 
 
     user@vsphere:~$ vim 04-pvc-claim.yaml 
@@ -125,6 +164,17 @@ step 4. Create dynamic pvc.
       resources:
         requests:
         storage: 100Gi
+
+Apply nfs pvc. 
+
+    user@vsphere:~/nfs$ kubectl apply -f 04-pvc.yaml 
+    persistentvolumeclaim/redhat-utility created
+
+Getting pvc status, it should be bound status.
+
+    user@vsphere:~/nfs$ kubectl get pvc
+    NAME             STATUS   VOLUME                                     CAPACITY   ACCESS MODES   STORAGECLASS   AGE
+    redhat-utility   Bound    pvc-83a1d13c-77e8-406b-b3f9-8bdec1e4f809   100Gi      RWX            nfs            4s
 
 step 5. Create dynamic pod.
 
@@ -150,4 +200,24 @@ step 5. Create dynamic pod.
         volumeMounts:
         - name: host-volume
           mountPath: /mydata
+
+Apply test pod. 
+
+    user@vsphere:~/nfs$ kubectl apply -f 05-pod.yaml
+    pod/pod1 created
+
+Getting pod status. 
+
+    user@vsphere:~/nfs$ kubectl get pods 
+    NAME                              READY   STATUS    RESTARTS   AGE
+    pod1                              1/1     Running   0          8s
+
+Check mount point status. 
+
+    user@vsphere:~/nfs$ kubectl exec -it pod1 -- bash 
+    root@pod1:/# df -h 
+    Filesystem                                                                                    Size  Used Avail Use% Mounted on
+    ...
+    172.25.128.2:/nfsVsphereVMDK/default-redhat-utility-pvc-83a1d13c-77e8-406b-b3f9-8bdec1e4f809  314G   15G  283G   5% /mydata
+
 
