@@ -25,47 +25,50 @@ Change to the <kubernetes> directory if you're not already there.
 This example will work in a custom namespace to demonstrate the concepts involved.
 
 Let's create a new namespace called limit-example:
-    
-    $ kubectl create namespace limit-example
-      namespace "limit-example" created
+        
+    user@vsphere:~$ kubectl create namespace limit-example
+    namespace/limit-example created
+
+    user@vsphere:~$ kubectl config set-context --current --namespace=limit-example
+    Context "kubernetes-admin@kubernetes" modified.
 
 Note that kubectl commands will print the type and name of the resource created or mutated, which can then be used in subsequent commands:
 
-    $ kubectl get namespaces
-    NAME            STATUS    AGE
-    default         Active    1s
-    limit-example   Active    5s
+    user@vsphere:~$ kubectl get namespace
+    NAME              STATUS   AGE
+    limit-example     Active   11s
+
 
 ## Step 2: Apply a limit to the namespace
 
 Let's create a simple limit in our namespace.
 
-```bash
-   $ cat limitrange/limits.yaml
-   apiVersion: v1
-   kind: LimitRange
-   metadata:
-   	name: mylimits
-   	namespace: limit-example
-   spec:
-   	limits:
-   		- default:
-   			  cpu: 300mi
-   			  memory: 200mi
-   		  defaultRequest:
-   		    cpu: 200mi
-   			  memory: 100mi
-     	  min:
-   		    cpu: 100m
-    			memory: 3Mi
-    		max:
-    		  cpu: 2
-    			memory: 1Gi
-        type: Container
-```
+    user@vsphere:~$ cat limitrange.yaml
+    apiVersion: v1
+    kind: LimitRange
+    metadata:
+      name: mylimits
+      namespace: limit-example
+    spec:
+      limits:
+        - default:
+            cpu: 300mi
+            memory: 200mi
+          defaultRequest:
+            cpu: 200mi
+            memory: 100mi
+          min:
+            cpu: 100m
+            memory: 3Mi
+          max:
+            cpu: 2
+            memory: 1Gi
+          type: Container
 
-    $ kubectl create -f limitrange/limits.yaml --namespace=limit-example
-    limitrange "mylimits" created
+
+
+    $ kubectl create -f limitrange.yaml --namespace=limit-example
+    limitrange "limitrange" created
 
 Let's describe the limits that we have imposed in our namespace.
 
@@ -91,18 +94,18 @@ If a resource (CPU or memory) is being restricted by a limit, the user will get 
 
 Let's first spin up a Deployment that creates a single container Pod to demonstrate how default values are applied to each pod.
 
-  $ kubectl run nginx --image=nginx --replicas=1 --namespace=limit-example
+    user@vsphere:~$ kubectl run nginx --image=nginx --replicas=1 --namespace=limit-example
     deployment "nginx" created
 
 Note that kubectl run creates a Deployment named "nginx" on Kubernetes cluster >= v1.2. If you are running older versions, it creates replication controllers instead. If you want to obtain the old behavior, use --generator=run/v1 to create replication controllers. See kubectl run for more details. The Deployment manages 1 replica of single container Pod. Let's take a look at the Pod it manages. First, find the name of the Pod:
 
-  $ kubectl get pods --namespace=limit-example
-  NAME                     READY     STATUS    RESTARTS   AGE
-  nginx-2040093540-s8vzu   1/1       Running   0          11s
+    user@vsphere:~$ kubectl get pods --namespace=limit-example
+    NAME                     READY     STATUS    RESTARTS   AGE
+    nginx-2040093540-s8vzu   1/1       Running   0          11s
 
 Let's print this Pod with yaml output format (using -o yaml flag), and then grep the resources field. Note that your pod name will be different.
 
-  $ kubectl get pods nginx-2040093540-s8vzu --namespace=limit-example -o yaml | grep resources -C 8
+    user@vsphere:~$ kubectl get pods nginx-2040093540-s8vzu --namespace=limit-example -o yaml | grep resources -C 8
     resourceVersion: "57"
       selfLink: /api/v1/namespaces/limit-example/pods/nginx-2040093540-ivimu
       uid: 67b20741-f53b-11e5-b066-64510658e388
@@ -125,17 +128,17 @@ Note that our nginx container has picked up the namespace default CPU and memory
 
 Let's create a pod that exceeds our allowed limits by having it have a container that requests 3 CPU cores.
 
-    $ kubectl create -f docs/admin/limitrange/invalid-pod.yaml --namespace=limit-example
+    user@vsphere:~$ kubectl create -f docs/admin/limitrange/invalid-pod.yaml --namespace=limit-example
     Error from server: error when creating "docs/admin/limitrange/invalid-pod.yaml": Pod "invalid-pod" is forbidden: [Maximum cpu usage per Pod is 2, but limit is 3., Maximum cpu usage per Container is 2, but limit is 3.]
 
 Let's create a pod that falls within the allowed limit boundaries.
 
-    $ kubectl create -f docs/admin/limitrange/valid-pod.yaml --namespace=limit-example
+    user@vsphere:~$ kubectl create -f docs/admin/limitrange/valid-pod.yaml --namespace=limit-example
     pod "valid-pod" created
 
 Now look at the Pod's resources field:
 
-    $ kubectl get pods valid-pod --namespace=limit-example -o yaml | grep -C 6 resources
+    user@vsphere:~$ kubectl get pods valid-pod --namespace=limit-example -o yaml | grep -C 6 resources
       uid: 3b1bfd7a-f53c-11e5-b066-64510658e388
     spec:
       containers:
@@ -154,18 +157,19 @@ Now look at the Pod's resources field:
 
     Note: The limits for CPU resource are enforced in the default Kubernetes setup on the physical node that runs the container unless the administrator deploys the kubelet with the following flag:
 
-    $ kubelet --help
+    user@vsphere:~$ kubelet --help
     Usage of kubelet
     ....
       --cpu-cfs-quota[=true]: Enable CPU CFS quota enforcement for containers that specify CPU limits
-    $ kubelet --cpu-cfs-quota=false ...
+    user@vsphere:~$ kubelet --cpu-cfs-quota=false ...
 
 ## Step 4: Cleanup
 
 To remove the resources used by this example, you can just delete the limit-example namespace.
 
-    $ kubectl delete namespace limit-example
+    user@vsphere:~$ kubectl delete namespace limit-example
     namespace "limit-example" deleted
-    $ kubectl get namespaces
+    
+    user@vsphere:~$ kubectl get namespaces
     NAME            STATUS        AGE
     default         Active        12m
