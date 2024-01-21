@@ -47,15 +47,15 @@ In order to create secrets from a text file such as user name and password, we f
     apiVersion: v1
     kind: Secret
     metadata:
-    name: tomcat-pass
+      name: tomcat-pass
     type: Opaque
     data:
-    password: abcd001
-    username: redhat
+      password: abcd001
+      username: redhat
 
 ## Creating the Secret
 
-    $ kubectl create –f Secret.yaml
+    $ kubectl create -f Secret.yaml
     secrets/tomcat-pass
 
 ## Using Secrets
@@ -72,50 +72,50 @@ In order to use the secret as environment variable, we will use env under the sp
     env:
     - name: SECRET_USERNAME
     valueFrom:
-        secretKeyRef:
-            name: mysecret
-            key: tomcat-pass
+      secretKeyRef:
+        name: mysecret
+        key: tomcat-pass
 
 As Volume
 
     spec:
     volumes:
-        - name: "secretstest"
-            secret:
-                secretName: tomcat-pass
+      - name: "secretstest"
+        secret:
+          secretName: tomcat-pass
     containers:
-        - image: tomcat:7.0
-            name: awebserver
-            volumeMounts:
-                - mountPath: "/tmp/mysec"
-                name: "secretstest"
+    - image: tomcat:7.0
+      name: awebserver
+      volumeMounts:
+      - mountPath: "/tmp/mysec"
+        name: "secretstest"
 
 Secret Configuration As Environment Variable
 
     apiVersion: v1
     kind: ReplicationController
     metadata:
-    name: appname
+      name: appname
     spec:
-    replicas: 2
-    template:
-    metadata:
-        name: appname
-    spec:
+      replicas: 2
+      template:
+        metadata:
+          name: appname
+      spec:
         nodeSelector:
-            resource-group:
+          resource-group:
         containers:
-            - name: appname
-                image:
-                imagePullPolicy: Always
-                ports:
-                - containerPort: 3000
-                env: 
-                - name: ENV
-                    valueFrom:
-                      configMapKeyRef:
-                        name: appname
-                        key: tomcat-secrets
+        - name: appname
+          image:
+          imagePullPolicy: Always
+          ports:
+          - containerPort: 3000
+          env: 
+          - name: ENV
+          valueFrom:
+            configMapKeyRef:
+              name: appname
+              key: tomcat-secrets
 
 In the above code, under the env definition, we are using secrets as environment variable in the replication controller.
 
@@ -130,15 +130,15 @@ Secrets As Volume Mount
         name: appname
     spec:
     volumes:
-        - name: "secretstest"
-            secret:
-                secretName: tomcat-pass
+    - name: "secretstest"
+      secret:
+        secretName: tomcat-pass
     containers:
-        - image: tomcat: 8.0
-            name: awebserver
-            volumeMounts:
-                - mountPath: "/tmp/mysec"
-                name: "secretstest"
+    - image: tomcat: 8.0
+        name: awebserver
+        volumeMounts:
+        - mountPath: "/tmp/mysec"
+          name: "secretstest"
 
 ## Secrets
 
