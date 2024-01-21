@@ -132,6 +132,8 @@ g. And voila!! We can now reach the Nginx application hosted in the PODs from ou
     <p><em>Thank you for using nginx.</em></p>
     </body>
     </html>
+    
+# External IPs
 
 2.a. Create second pod yaml. 
 
