@@ -33,19 +33,35 @@ My Lab setup contains two servers. One control plane machine and one node to be 
 Provision the servers to be used in the deployment of Kubernetes on Ubuntu 20.04. The setup process will vary depending on the virtualization or cloud environment you’re using.
 
     root@devops-lab:~# sudo apt update -y 
-    root@devops-lab:~# sudo apt -y upgrade && sudo systemctl reboot 
         
 #### Step 2: Install kubelet, kubeadm and kubectl
 
 Once the Servers are rebooted, add the Kubernetes repository for Ubuntu 20.04 to all the servers.
 
-    root@devops-lab:~# sudo apt -y install curl apt-transport-https
-    root@devops-lab:~# curl -s https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key add -
-    root@devops-lab:~# echo "deb https://apt.kubernetes.io/ kubernetes-xenial main" | sudo tee /etc/apt/sources.list.d/kubernetes.list
-    root@devops-lab:~# apt update
-    root@devops-lab:~# apt -y install vim git curl wget kubelet kubeadm  kubectl 
+    root@devops-lab:~# sudo apt-get install -y apt-transport-https ca-certificates curl
+
+If the folder `/etc/apt/keyrings` does not exist, it should be created before the curl command, read the note below.
+    
+    root@devops-lab:~# sudo mkdir -p -m 755 /etc/apt/keyrings
+    root@devops-lab:~# curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.29/deb/Release.key | sudo gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+
+allow unprivileged APT programs to read
+
+    root@devops-lab:~# sudo chmod 644 /etc/apt/keyrings/kubernetes-apt-keyring.gpg 
+
+
+    root@devops-lab:~# echo 'deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.29/deb/ /' | sudo tee /etc/apt/sources.list.d/kubernetes.list
+    root@devops-lab:~# sudo chmod 644 /etc/apt/sources.list.d/kubernetes.list 
+
+    root@devops-lab:~# apt-get update
+    root@devops-lab:~# apt-get -y install kubelet kubeadm  kubectl 
+    
     root@devops-lab:~# apt-mark hold kubelet kubeadm kubectl 
+
     root@devops-lab:~# kubectl version --client && kubeadm version 
+    Client Version: v1.29.3
+    Kustomize Version: v5.0.4-0.20230601165947-6ce0bf390ce3
+    kubeadm version: &version.Info{Major:"1", Minor:"29", GitVersion:"v1.29.3", GitCommit:"6813625b7cd706db5bc7388921be03071e1a492d", GitTreeState:"clean", BuildDate:"2024-03-15T00:06:16Z", GoVersion:"go1.21.8", Compiler:"gc", Platform:"linux/amd64"}
 
  
 #### Step 3: Disable Swap
@@ -87,7 +103,7 @@ If your Kubernetes version is 1.26, install CRI-O version 1.23. We’ll start by
 
 
     root@devops-lab:~# OS=xUbuntu_22.04
-    root@devops-lab:~# CRIO_VERSION=1.26
+    root@devops-lab:~# CRIO_VERSION=1.28
     root@devops-lab:~# echo "deb https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/$OS/ /"|sudo tee /etc/apt/sources.list.d/devel:kubic:libcontainers:stable.list
     root@devops-lab:~# echo "deb http://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable:/cri-o:/$CRIO_VERSION/$OS/ /"|sudo tee /etc/apt/sources.list.d/devel:kubic:libcontainers:stable:cri-o:$CRIO_VERSION.list
 
@@ -140,16 +156,6 @@ When repository is added, update apt cache and install CRI-O on Ubuntu.
     ● crio.service - Container Runtime Interface for OCI (CRI-O)
         Loaded: loaded (/lib/systemd/system/crio.service; enabled; vendor preset: enabled)
         Active: active (running) since Sun 2020-06-07 20:16:50 CEST; 37s ago
-        Docs: https://github.com/cri-o/cri-o
-    Main PID: 2461 (crio)
-        Tasks: 13
-        Memory: 7.7M
-        CGroup: /system.slice/crio.service
-                └─2461 /usr/bin/crio
-
-    Jun 07 20:16:50 ubuntu systemd[1]: Starting Container Runtime Interface for OCI (CRI-O)...
-    Jun 07 20:16:50 ubuntu systemd[1]: Started Container Runtime Interface for OCI (CRI-O).
-    Step 4: Using CRI-O on Ubuntu22.04|20.04|18.04
 
 The command line tool crioctl can be installed through cri-tools package.
 
@@ -178,8 +184,6 @@ The command line tool crioctl can be installed through cri-tools package.
 
     root@devops-lab:~# sudo kubeadm config images pull --cri-socket /var/run/crio/crio.sock 
 
-
- 
 #### Step 10: Initialize Kubernetes master server
 
 Run these on the master node:
