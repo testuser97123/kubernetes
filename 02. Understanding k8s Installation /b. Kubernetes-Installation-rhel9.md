@@ -268,3 +268,107 @@ Then you can run the connectivity test. Some of the egress test will fail becaus
     kube-system   kube-proxy-rszpt                                 1/1     Running   0          40m
     kube-system   kube-scheduler-test-vm-01.example.com            1/1     Running   2          40m
     
+## Step 9: Join Worker Nodes
+After successfully initializing the Kubernetes control plane on the master node, you’ll need to join the worker nodes to the cluster. Kubernetes provides a join command that includes a token and the master node’s IP address to allow worker nodes to connect to the cluster. Here’s how you can do it:
+
+## Get Join Command on Master Node
+
+On the master node, run the following command to generate the join command along with a token:
+
+    [root@test-vm-01 ~]# sudo kubeadm token create --print-join-command
+    kubeadm join 192.168.1.26:6443 --token kyy7v6.h26obyvthe08ohsn --discovery-token-ca-cert-hash sha256:cb67fddec41469cf1f495db34008ae1a41d3f24ce418b46d5aefb262a1721f43
+
+## Run Join Command on Worker Nodes
+
+Copy the join command generated in the previous step and run it on each worker node. The join command typically looks like this:
+
+    [root@test-vm-01 ~]# sudo kubeadm join <MASTER_IP>:<MASTER_PORT> --token <TOKEN> --discovery-token-ca-cert-hash <DISCOVERY_TOKEN_CA_CERT_HASH>
+
+## Verify Worker Node Join
+
+After running the join command on each worker node, switch back to the master node and run the following command to verify that the worker nodes have successfully joined the cluster:
+
+    [root@test-vm-01 ~]# kubectl get nodes
+
+This command should list all the nodes in the cluster, including the master node and the newly joined worker nodes. The status of the worker nodes should be “Ready,” indicating that they have successfully joined the cluster and are ready to accept workloads.
+    
+    NAME                       STATUS   ROLES           AGE     VERSION
+    k8s-master.blackhat.com    Ready    control-plane   60m     v1.29.3
+    k8s-worker1.blackhat.com   Ready    <none>          5m16s   v1.29.3
+    k8s-worker2.blackhat.com   Ready    <none>          2m40s   v1.29.3
+    
+## NGINX Test Deployment
+
+To test your Kubernetes cluster, you can deploy a simple application such as a NGINX web server. Here’s a sample YAML manifest to deploy NGINX as a test deployment:
+
+    [root@test-vm-01 ~]# vim nginx-deployment.yaml
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: nginx-deployment
+      labels:
+        app: nginx
+    spec:
+      replicas: 3
+      selector:
+        matchLabels:
+          app: nginx
+      template:
+        metadata:
+          labels:
+            app: nginx
+        spec:
+          containers:
+          - name: nginx
+            image: nginx:latest
+            ports:
+            - containerPort: 80
+
+## Deploy NGINX
+
+Save the above YAML to a file named nginx-deployment.yaml, then apply it using the kubectl apply command:
+    
+    [root@test-vm-01 ~]# kubectl apply -f nginx-deployment.yaml
+    deployment.apps/nginx-deployment created
+
+This deployment will create three replicas of NGINX pods in your cluster. Each pod will run an NGINX container exposing port 80. To check the status of your deployment, use the following command:
+    
+    [root@test-vm-01 ~]# kubectl get deployments  
+    NAME               READY   UP-TO-DATE   AVAILABLE   AGE
+    nginx-deployment   3/3     3            3           2m40s
+    
+To verify that the NGINX pods are running, use:
+
+
+
+Expose NGINX to the external network
+
+Once the pods are up and running, you can expose the NGINX service to the external network using a Kubernetes Service:
+
+    [root@test-vm-01 ~]# vim nginx-service.yaml
+    apiVersion: v1
+    kind: Service
+    metadata:
+      name: nginx-service
+    spec:
+      selector:
+        app: nginx
+      ports:
+        - protocol: TCP
+          port: 80
+          targetPort: 80
+      type: LoadBalancer
+
+Save the above YAML to a file named nginx-service.yaml, then apply it using the kubectl apply command:
+
+    [root@test-vm-01 ~]# kubectl apply -f nginx-service.yaml
+    service/nginx-service created
+
+This will create a Service of type LoadBalancer, which exposes the NGINX deployment to the external network. To get the external IP address of the NGINX service, you can use:
+
+    [root@test-vm-01 ~]# kubectl get service nginx-service
+
+Once you have the external IP address, navigate to it in a web browser. You should see the default NGINX welcome page, indicating that your Kubernetes cluster is successfully serving web traffic.
+
+![alt text](image-1.png)
+
