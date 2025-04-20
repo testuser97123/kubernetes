@@ -132,12 +132,20 @@ First, add the Kubernetes repository (as the root user) to your package manager.
     gpgcheck=1
     gpgkey=https://pkgs.k8s.io/core:/stable:/v1.29/rpm/repodata/repomd.xml.key
     EOF
+### Add the CRI-O repository:
 
-### Install Kubernetes Packages
+    [cri-o]
+    name=CRI-O
+    baseurl=https://pkgs.k8s.io/addons:/cri-o:/stable:/v1.31/rpm/
+    enabled=1
+    gpgcheck=1
+    gpgkey=https://pkgs.k8s.io/addons:/cri-o:/stable:/v1.31/rpm/repodata/repomd.xml.key
+
+
 
 Once the repository is added, you can proceed to install the Kubernetes components (kubelet, kubeadm, and kubectl) using the package manager. Run the following command:
 
-    [root@test-vm-01 ~]# dnf makecache; dnf install -y kubelet kubeadm kubectl --disableexcludes=kubernetes
+    [root@test-vm-01 ~]# dnf makecache; dnf install -y kubelet kubeadm kubectl --disableexcludes=kubernetes ; dnf install -y cri* -y
 
 ### Start and Enable kubelet Service
 
